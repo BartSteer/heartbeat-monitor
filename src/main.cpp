@@ -22,6 +22,7 @@ void setup() {
 
 void loop() {
     static unsigned long lastSample = 0;
+    static AvgState      lastAvgState = AvgState::IDLE;
     unsigned long now = millis();
 
     if (now - lastSample < SAMPLE_INTERVAL) return;
@@ -29,19 +30,32 @@ void loop() {
 
     int raw = analogRead(PULSE_PIN);
         if (bpm.update(raw)) {
-        // Pass the same 'now'
         avgBpm.notifyBeat(now);
+        Serial.print("BEAT,");
+        Serial.println(bpm.getBPM());
+    }
+
+    AvgState currentState = avgBpm.getState();
+    if (currentState != lastAvgState) {
+        Serial.print("STATE,");
+        switch (currentState) {
+            case AvgState::IDLE:      Serial.println("IDLE");      break;
+            case AvgState::WAITING:   Serial.println("WAITING");   break;
+            case AvgState::DONE:      Serial.println("DONE");      break;
+            case AvgState::CANCELLED: Serial.println("CANCELLED"); break;
+        }
+        lastAvgState = currentState;
     }
 
     if (avgBpm.getState() == AvgState::DONE) {
-        //Serial.print("AVG,");
-        //Serial.println(avgBpm.getResult());
+        Serial.print("AVG,");
+        Serial.println(avgBpm.getResult());
         avgBpm.reset();  // clear intervals
     }   
-
+    Serial.print("RAW,");
     Serial.print(raw);
     Serial.print(",");
-    Serial.println(bpm.getBPM());
+    Serial.println(bpm.getBaseline());
 }
 
 

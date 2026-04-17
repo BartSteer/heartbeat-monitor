@@ -34,8 +34,6 @@ void AverageBPM::notifyBeat(unsigned long timestamp) {
     // ── Store the interval since the last beat ────────────────────────────
     //
     // Guard against overflow of the fixed-size array.
-    // At 200 BPM this should never be reached in a 20 s window,
-    // but defensive code is good practice on embedded targets.
     if (_intervalCount < MAX_INTERVALS) {
         _intervals[_intervalCount++] = timestamp - _lastBeatTime;
     }
