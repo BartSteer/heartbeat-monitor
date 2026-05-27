@@ -4,6 +4,7 @@
 #include "breathing/breathCalc.h"
 #include "button/ButtonHandler.h"
 #include "accelerometer/accelmonitor.h"
+#include "audio/heartbeataudio.h"
 
 const int PULSE_PIN                   = A0;
 const int BUTTON_PIN                  = 2;
@@ -11,10 +12,11 @@ const int SAMPLE_INTERVAL             = 10;       // ms → 100 Hz
 const unsigned long CANCEL_TO_IDLE_MS = 3000UL;  // auto-reset delay after cancel
 const unsigned long MOTION_GRACE_MS   = 2000UL;  // ignore motion this long after start()
  
-BPMCalculator       bpm(300, 300, 100);
+BPMCalculator       bpm(300, 500, 100);
 AverageBPM          avgBpm;
 BreathingCalculator breathCalc;
 ButtonHandler       button(BUTTON_PIN);
+HeartbeatAudio      heartbeat;
 AccelMonitor        accel;   // defaults: addr=0x68, threshold=1500, alpha=30, 100ms
  
 void setup() {
@@ -29,6 +31,7 @@ void setup() {
  
     delay(2000);
     Serial.println("BPM Monitor Ready");
+    heartbeat.begin();
 }
  
 void loop() {
@@ -40,24 +43,26 @@ void loop() {
     static bool          lastMoving    = false;
  
     unsigned long now = millis();
- 
+    
+    // ── Heartbeat audio update ───────────────────────────────────────────────
+    heartbeat.update();
     // ── Accelerometer ─────────────────────────────────────────────────────
     accel.update(now);
  
     // ── Motion detection ──────────────────────────────────────────────────
     bool inGracePeriod = (startedAtMs != 0) &&
-                         (now - startedAtMs < MOTION_GRACE_MS);
- 
-    if (!inGracePeriod && accel.wasMoving()) {
-        if (avgBpm.getState() == AvgState::WAITING) {
+                     (now - startedAtMs < MOTION_GRACE_MS);
+
+    if (accel.wasMoving()) {
+        if (!inGracePeriod && avgBpm.getState() == AvgState::WAITING) {
             avgBpm.cancel();
             breathCalc.cancel();
             cancelledAtMs = now;
             startedAtMs   = 0;
         }
-        // Always clear the latch after handling so we don't repeatedly cancel if motion continues.
+        // Always clear the latch, even during grace period
         accel.clearMotion();
-    }
+    }   
  
     // Report motion state changes
     bool currentlyMoving = accel.isMoving();
@@ -106,7 +111,21 @@ void loop() {
         // notifyBeat() is a no-op unless the calculator is WAITING
         avgBpm.notifyBeat(now);
         breathCalc.notifyBeat(now);
- 
+
+        // Pulse strength is estimated as the absolute signal rise above baseline,
+        // normalized to a reasonable maximum of 1200 (empirically determined).
+        float pulseStrength =
+        constrain(
+            abs(raw - bpm.getBaseline()) / 1200.0f,
+            0.0f,
+            1.0f
+        );
+        // Trigger heartbeat sound
+        heartbeat.trigger(
+            bpm.getBPM(),
+            pulseStrength
+        );
+        
         Serial.print("BEAT,");
         Serial.println(bpm.getBPM());
     }
@@ -127,7 +146,7 @@ void loop() {
         Serial.print("FFT");
         for (int i = 0; i < BreathingCalculator::FFT_EXPORT_BINS; i++) {
             Serial.print(",");
-            Serial.print(breathCalc.fftMagnitude[i], 2);
+            Serial.print(breathCalc.fftMagnitude[i], 4);
         }
         Serial.println();
  
