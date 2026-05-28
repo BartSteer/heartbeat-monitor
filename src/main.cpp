@@ -5,8 +5,8 @@
 #include "button/ButtonHandler.h"
 #include "accelerometer/accelmonitor.h"
 #include "audio/heartbeataudio.h"
+#include "pulse/pulseSensor.h"
 
-const int PULSE_PIN                   = A0;
 const int BUTTON_PIN                  = 2;
 const int SAMPLE_INTERVAL             = 10;       // ms → 100 Hz
 const unsigned long CANCEL_TO_IDLE_MS = 3000UL;  // auto-reset delay after cancel
@@ -18,12 +18,13 @@ BreathingCalculator breathCalc;
 ButtonHandler       button(BUTTON_PIN);
 HeartbeatAudio      heartbeat;
 AccelMonitor        accel;   // defaults: addr=0x68, threshold=1500, alpha=30, 100ms
+PulseSensor         pulseSensor;
  
 void setup() {
     Serial.begin(115200);
     Wire.begin();
-    analogReadResolution(12);
     pinMode(BUTTON_PIN, INPUT_PULLUP);
+    pulseSensor.begin();
  
     if (!accel.begin()) {
         Serial.println("ERROR: AccelMonitor not found on I2C");
@@ -104,7 +105,7 @@ void loop() {
     if (now - lastSample < SAMPLE_INTERVAL) return;
     lastSample = now;
  
-    int raw = analogRead(PULSE_PIN);
+    int raw = pulseSensor.readRaw();
  
     // ── Beat detection ────────────────────────────────────────────────────
     if (bpm.update(raw)) {
