@@ -189,7 +189,7 @@ void BreathingCalculator::_bandpassFilter() {
 
     float x[5] = {0};
     float y[5] = {0};
-    // Direct Form II Transposed implementation, reducing memory, prevent precision loss, minimize rounding errors
+    // Direct Form I IIR filter, reducing memory, prevent precision loss, minimize rounding errors
     for (int n = 0; n < RESAMP_LEN; n++) {
 
         x[4] = x[3];

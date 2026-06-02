@@ -30,10 +30,10 @@ void HeartbeatAudio::begin() {
 
     // Envelope
     _env.attack(2);
-    _env.hold(8);
-    _env.decay(60);
+    _env.hold(10);
+    _env.decay(75);
     _env.sustain(0.0f);
-    _env.release(40);
+    _env.release(50);
 
     // Initial filter
     _filter.frequency(80);
@@ -64,7 +64,7 @@ void HeartbeatAudio::update() {
         int dubDelay =
             map((int)_currentBpm,
                 50, 160,
-                140, 70);
+                160, 80);
 
         if (_phaseTimer >= dubDelay) {
 
